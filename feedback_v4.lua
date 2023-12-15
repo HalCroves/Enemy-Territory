@@ -47,6 +47,9 @@ Version = "2.0"
 -- Table pour stocker les joueurs ayant déjà voté
 local playersVoted = {}
 
+-- Nouvelle variable pour compter les votes du joueur
+local votesCount = 0
+
 -- Nom du dossier de sauvegarde
 local dossierVotes = "votes/"
 
@@ -125,10 +128,11 @@ local function splitString(inputString, delimiter)
     return parts
 end
 
+local MAX_VOTES_PER_MAP = 3
+
 -- Fonction pour sauvegarder les votes dans un fichier
 local function sauvegarderVotes(addVote, clientNum, mapname)
     local dossierVotes = "votes/"
-    --local mapname = et.trap_Cvar_Get("mapname")
     local fichierVotes = dossierVotes .. "vote_" .. mapname .. ".txt"
     local fichierPlayersVotes = dossierVotes .. "players_vote_" .. mapname .. ".txt"
 
@@ -147,7 +151,10 @@ local function sauvegarderVotes(addVote, clientNum, mapname)
     if fichierPlayers then
         for line in fichierPlayers:lines() do
             local parts = splitString(line, ";")
-            if #parts == 4 and parts[1] == playerName and parts[2] == clientGuid and parts[3] == mapname then
+            local storedClientGuid = parts[2]
+            local storedPlayerName = parts[1]
+
+            if #parts == 5 and storedClientGuid == clientGuid and parts[3] == mapname then
                 -- Le joueur a déjà voté, mettre à jour le dernier champ de la ligne
                 local previousVote = parts[4]
                 if previousVote == "like" then
@@ -156,8 +163,15 @@ local function sauvegarderVotes(addVote, clientNum, mapname)
                     existingVotes.dislike = math.max(existingVotes.dislike - 1, 0)
                 end
 
+                -- Mettre à jour le champ du nombre de votes
+                votesCount = tonumber(parts[5]) or 0
+                if votesCount < 0 then votesCount = 0 end
+                votesCount = math.min(votesCount + 1, MAX_VOTES_PER_MAP)
+                parts[5] = tostring(votesCount)
+
                 parts[4] = addVote
                 foundPlayer = true
+                parts[1] = playerName
             end
             table.insert(lines, table.concat(parts, ";"))
         end
@@ -166,7 +180,7 @@ local function sauvegarderVotes(addVote, clientNum, mapname)
 
     -- Si le joueur n'a pas été trouvé, ajouter une nouvelle ligne
     if not foundPlayer then
-        table.insert(lines, playerName .. ";" .. clientGuid .. ";" .. mapname .. ";" .. addVote)
+        table.insert(lines, playerName .. ";" .. clientGuid .. ";" .. mapname .. ";" .. addVote .. ";1")  -- 1 est le nombre initial de votes
     end
 
     -- Sauvegarder les lignes dans le fichier
@@ -209,7 +223,6 @@ local function sauvegarderVotes(addVote, clientNum, mapname)
     fichier:close()
 end
 
-
 -- Fonction pour vérifier si le match est en cours
 local function isGameInProgress()
     local gameState = et.trap_Cvar_Get("gamestate")
@@ -225,7 +238,7 @@ local function hasPlayerVoted(clientNum, mapname)
     if fichierPlayers then
         for line in fichierPlayers:lines() do
             local parts = splitString(line, ";")
-            if #parts == 4 and parts[2] == clientGuid and parts[3] == mapname then
+            if #parts == 5 and parts[2] == clientGuid and parts[3] == mapname then
                 fichierPlayers:close()
                 return true
             end
@@ -236,7 +249,7 @@ local function hasPlayerVoted(clientNum, mapname)
     return false
 end
 
--- Modifiez la fonction de vote -> LIKE
+-- Fonction de vote -> LIKE
 local function likeCommand(clientNum, mapname)
     local playerName = et.gentity_get(clientNum, "pers.netname")
     local clientGuid = et.Info_ValueForKey(et.trap_GetUserinfo(clientNum), "n_guid")
@@ -246,6 +259,12 @@ local function likeCommand(clientNum, mapname)
     -- Vérifier si le match est en cours
     if not isGameInProgress() then
         et.trap_SendServerCommand(clientNum, "chat \"^1Voting is not allowed at the moment!^7\"")
+        return
+    end
+
+    -- Vérifier si le joueur a atteint le nombre maximum de votes
+    if votesCount >= MAX_VOTES_PER_MAP then
+        et.trap_SendServerCommand(clientNum, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7you have reached the maximum number of votes on ^3" .. mapname .. " ^7map!\"")
         return
     end
 
@@ -275,7 +294,7 @@ local function likeCommand(clientNum, mapname)
     end
 end
 
--- Modifiez la fonction de vote -> DISLIKE
+-- Fonction de vote -> DISLIKE
 local function dislikeCommand(clientNum, mapname)
     local playerName = et.gentity_get(clientNum, "pers.netname")
     local addVote = "dislike"
@@ -283,6 +302,12 @@ local function dislikeCommand(clientNum, mapname)
     -- Vérifier si le match est en cours
     if not isGameInProgress() then
         et.trap_SendServerCommand(clientNum, "chat \"^1Voting is not allowed at the moment!^7\"")
+        return
+    end
+
+    -- Vérifier si le joueur a atteint le nombre maximum de votes
+    if votesCount >= MAX_VOTES_PER_MAP then
+        et.trap_SendServerCommand(clientNum, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7you have reached the maximum number of votes on ^3" .. mapname .. " ^7map!\"")
         return
     end
 
