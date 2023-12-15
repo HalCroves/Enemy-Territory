@@ -88,6 +88,9 @@ function et_InitGame(leveltime, randomseed, restart)
     -- Initialisation des variables
     votes = chargerVotes(fichierVotes)
 
+    -- Réinitialiser le marqueur feedbackMessageSent
+    feedbackMessageSent = false
+
     -- Nom du fichier de sauvegarde pour les joueurs ayant voté pour la map actuelle
     local fichierPlayersVotes = dossierVotes .. "players_vote_" .. mapname .. ".txt"
 
@@ -106,7 +109,6 @@ function et_InitGame(leveltime, randomseed, restart)
     else
         fichierPlayers:close()
     end
-    
 end
 
 -- Fonction pour supprimer les espaces blancs au début et à la fin d'une chaîne
@@ -124,9 +126,9 @@ local function splitString(inputString, delimiter)
 end
 
 -- Fonction pour sauvegarder les votes dans un fichier
-local function sauvegarderVotes(addVote, clientNum)
+local function sauvegarderVotes(addVote, clientNum, mapname)
     local dossierVotes = "votes/"
-    local mapname = et.trap_Cvar_Get("mapname")
+    --local mapname = et.trap_Cvar_Get("mapname")
     local fichierVotes = dossierVotes .. "vote_" .. mapname .. ".txt"
     local fichierPlayersVotes = dossierVotes .. "players_vote_" .. mapname .. ".txt"
 
@@ -207,13 +209,36 @@ local function sauvegarderVotes(addVote, clientNum)
     fichier:close()
 end
 
+
 -- Fonction pour vérifier si le match est en cours
 local function isGameInProgress()
     local gameState = et.trap_Cvar_Get("gamestate")
     return gameState == "0" or gameState == "" or gameState == "3" -- 0 pour "GAME_STATE_PLAYING", 3 pour "GAME_STATE_POSTGAME"
 end
 
--- Fonction de vote -> LIKE
+-- Fonction pour vérifier si le joueur a déjà voté
+function hasPlayerVoted(clientNum, mapname, voteType)
+    local playerName = et.gentity_get(clientNum, "pers.netname")
+    local clientGuid = et.Info_ValueForKey(et.trap_GetUserinfo(clientNum), "cl_guid")
+    local fichierPlayersVotes = dossierVotes .. "players_vote_" .. mapname .. ".txt"
+
+    local fichierPlayers = io.open(fichierPlayersVotes, "r")
+    if fichierPlayers then
+        for line in fichierPlayers:lines() do
+            local parts = splitString(line, ";")
+            if #parts == 4 and parts[1] == playerName and parts[2] == clientGuid and parts[3] == mapname then
+                if voteType and parts[4] == voteType then
+                    fichierPlayers:close()
+                    return true
+                end
+            end
+        end
+        fichierPlayers:close()
+    end
+
+    return false
+end
+
 local function likeCommand(clientNum, mapname)
     local playerName = et.gentity_get(clientNum, "pers.netname")
     local addVote = "like"
@@ -224,8 +249,14 @@ local function likeCommand(clientNum, mapname)
         return
     end
 
+    -- Vérifier si le joueur a déjà voté pour le LIKE
+    if hasPlayerVoted(clientNum, mapname, addVote) then
+        et.trap_SendServerCommand(clientNum, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7you have already voted ^2LIKE^7. You can change your vote using ^1/dislike^7.\"")
+        return
+    end
+
     -- Vérifier si le joueur a déjà voté
-    if not playersVoted[clientNum] then
+    if not hasPlayerVoted(clientNum, mapname) then
         votes.like = votes.like + 1
         votes.totalVotes = votes.totalVotes + 1
         et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7gave a ^2LIKE ^7for ^3"..mapname.." ^7map!\"")
@@ -233,7 +264,7 @@ local function likeCommand(clientNum, mapname)
         -- Marquer le joueur comme ayant voté
         playersVoted[clientNum] = addVote
         -- Sauvegarder les votes après chaque nouveau vote
-        sauvegarderVotes(addVote, clientNum)
+        sauvegarderVotes(addVote, clientNum, mapname)
     else
         -- Le joueur a déjà voté
         local previousVote = playersVoted[clientNum]
@@ -245,12 +276,12 @@ local function likeCommand(clientNum, mapname)
             et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7changed their vote to ^2LIKE^7 for ^3"..mapname.." ^7map!\"")
             -- Mettre à jour le fichier "players_vote_<mapname>.txt"
             playersVoted[clientNum] = addVote
-            sauvegarderVotes(addVote, clientNum)
+            sauvegarderVotes(addVote, clientNum, mapname)
         end
     end
 end
 
--- Fonction de vote -> DISLIKE
+-- Modifiez la fonction de vote -> DISLIKE
 local function dislikeCommand(clientNum, mapname)
     local playerName = et.gentity_get(clientNum, "pers.netname")
     local addVote = "dislike"
@@ -261,8 +292,13 @@ local function dislikeCommand(clientNum, mapname)
         return
     end
 
+    -- Vérifier si le joueur a déjà voté pour le DISLIKE
+    if hasPlayerVoted(clientNum, mapname, addVote) then
+        et.trap_SendServerCommand(clientNum, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7you have already voted ^1DISLIKE^7. You can change your vote using ^2/like^7.\"")
+        return
+    end
     -- Vérifier si le joueur a déjà voté
-    if not playersVoted[clientNum] then
+    if not hasPlayerVoted(clientNum, mapname) then
         votes.dislike = votes.dislike + 1
         votes.totalVotes = votes.totalVotes + 1
         et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7gave a ^1DISLIKE ^7for ^3"..mapname.." ^7map!\"")
@@ -270,7 +306,7 @@ local function dislikeCommand(clientNum, mapname)
         -- Marquer le joueur comme ayant voté
         playersVoted[clientNum] = addVote
         -- Sauvegarder les votes après chaque nouveau vote
-        sauvegarderVotes(addVote, clientNum)
+        sauvegarderVotes(addVote, clientNum, mapname)
     else
         -- Le joueur a déjà voté
         local previousVote = playersVoted[clientNum]
@@ -282,7 +318,7 @@ local function dislikeCommand(clientNum, mapname)
             et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7changed their vote to ^1DISLIKE^7 for ^3"..mapname.." ^7map!\"")
             -- Mettre à jour le fichier "players_vote_<mapname>.txt"
             playersVoted[clientNum] = addVote
-            sauvegarderVotes(addVote, clientNum)
+            sauvegarderVotes(addVote, clientNum, mapname)
         end
     end
 end
