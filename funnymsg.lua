@@ -21,6 +21,9 @@ function et_Obituary(victimnum, killernum, meansofdeath)
         -- Mean of Death pour le couteau
         local knifeDeath = 5
 
+        -- Mean of Death pour le lancé de couteau
+        local ThrowknifeDeath = 63
+
         -- Liste des meansofdeath associés aux explosifs
         local explosivesList = {4, 15, 21, 22, 25, 38, 39, 40, 41, 51, 66}
 
@@ -31,8 +34,8 @@ function et_Obituary(victimnum, killernum, meansofdeath)
         local TriggerHurtDeath = 34
 
         -- DEBUG
-        -- et.trap_SendServerCommand(victimnum, meansofdeath)
-        -- et.trap_SendServerCommand(killernum, meansofdeath)
+        et.trap_SendServerCommand(victimnum, meansofdeath)
+        et.trap_SendServerCommand(killernum, meansofdeath)
         --
 
         -- Vérifie si meansofdeath est dans la liste des explosifs
@@ -87,6 +90,37 @@ function et_Obituary(victimnum, killernum, meansofdeath)
                 "Silent, deadly, and unexpectedly witty: ^7%s^V's knife strikes again, claiming %s^V!",
                 "%s^V took a stab at greatness. ^7%s^V provided the inspiration!",
                 "When life gives you lemons, %s^V, ^7%s^V suggests making lemonade... with a knife twist!"
+            }
+
+            local randomMessage = messages[math.random(1, #messages)]
+
+            et.trap_SendServerCommand(-1, string.format("chat \"%s\"", string.format(randomMessage, victimname, killername)))
+        -- Mort par lancé de couteau
+        elseif meansofdeath == ThrowknifeDeath then
+            local killername = string.gsub(et.gentity_get(killernum, "pers.netname"), "%^$", "^^ ")
+            local victimname = string.gsub(et.gentity_get(victimnum, "pers.netname"), "%^$", "^^ ")
+        
+            local messages = {
+                "%s^V dodged bullets, but a flying knife? Not so much!",
+                "Catch! %s^V just caught ^7%s^V's knife with their face!",
+                "Who needs a bow when ^7%s^V delivers knives with precision?",
+                "%s^V played a game of 'Dodge the Bullet,' but ^7%s^V played 'Dodge the Knife'!",
+                "In the battle of bullets versus knives, %s^V found out knives can fly!",
+                "Roses are red, violets are blue, %s^V got a knife, and it's from ^7%s^V too!",
+                "Warning: %s^V is a master of both throwing shade and throwing knives!",
+                "They say lightning doesn't strike twice, but knives thrown by ^7%s^V do!",
+                "%s^V took a stab at survival. ^7%s^V provided the stabbing!",
+                "Plot twist: %s^V's life story involves a unexpected ending with ^7%s^V's knife!",
+                "Did you hear about %s^V? Yeah, they got the point... literally!",
+                "No bullets, no problem. ^7%s^V delivers death with style!",
+                "Note to self: Don't stand still when ^7%s^V has a knife in hand!",
+                "They say knives are silent killers. %s^V would agree, thanks to ^7%s^V!",
+                "In the game of life, %s^V just drew the short straw... or should we say, the short knife?",
+                "Ever heard of knife-throwing mastery? Now you have, thanks to ^7%s^V and their victim %s^V!",
+                "When %s^V throws a knife, even the Matrix can't dodge it!",
+                "Surprise delivery! %s^V received a knife courtesy of ^7%s^V!",
+                "%s^V tried to dodge, but ^7%s^V's knife had other plans!",
+                "They say the pen is mightier than the sword. In this case, the knife wins. Sorry, %s^V!",
             }
 
             local randomMessage = messages[math.random(1, #messages)]
