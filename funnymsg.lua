@@ -1,6 +1,8 @@
 --[[ A GARDER
+    Mod -> Nitmod
     -- 4 = Grenade
     -- 5 = Couteau
+    -- 63 = lancé de couteau 
     -- 15 = panzer (allies/axis)
     -- 21 = dynamite (axis/allies)
     -- 22 = airstrike (allies/axis)
