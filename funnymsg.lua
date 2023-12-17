@@ -36,8 +36,8 @@ function et_Obituary(victimnum, killernum, meansofdeath)
         local TriggerHurtDeath = 34
 
         -- DEBUG
-        et.trap_SendServerCommand(victimnum, meansofdeath)
-        et.trap_SendServerCommand(killernum, meansofdeath)
+        -- et.trap_SendServerCommand(victimnum, meansofdeath)
+        -- et.trap_SendServerCommand(killernum, meansofdeath)
         --
 
         -- Vérifie si meansofdeath est dans la liste des explosifs
