@@ -12,6 +12,7 @@
     -- 40 = mines (allies/axis)
     -- 41 = satchel (allies/axis)
     -- 51 = mortar (allies/axis)
+    -- 58 = goomba
     -- 66 = tripmine
 ]]
 
@@ -34,6 +35,9 @@ function et_Obituary(victimnum, killernum, meansofdeath)
 
         -- Mean of Death pour MOD_TRIGGER_HURT
         local TriggerHurtDeath = 34
+
+        -- Mean of Death pour GOOMBA
+        local GoombaDeath = 58
 
         -- DEBUG
         -- et.trap_SendServerCommand(victimnum, meansofdeath)
@@ -146,6 +150,35 @@ function et_Obituary(victimnum, killernum, meansofdeath)
                 "%s^V's fall was so majestic, even the birds were jealous!",
                 "Gravity: 1, %s^V: 0. Better luck next time!",
                 "Has anyone seen %s^V? Last seen defying gravity!",
+            }
+
+            local randomMessage = messages[math.random(1, #messages)]
+
+            et.trap_SendServerCommand(-1, string.format("chat \"%s\"", string.format(randomMessage, victimname)))
+        -- Mort par écrasement (Goomba)
+        elseif meansofdeath == GoombaDeath then
+            local victimname = string.gsub(et.gentity_get(victimnum, "pers.netname"), "%^$", "^^ ")
+
+            local messages = {
+                "%s^V thought they were playing ET, not Mario Kart!",
+                "Splat! %s^V just became modern art on the battlefield.",
+                "When %s^V said they wanted a closer look, they didn't mean under someone's boot!",
+                "Gravity: 1, %s^V: 0. Better luck in the next respawn!",
+                "They say timing is everything. %s^V's timing for avoiding being squashed? Not so great.",
+                "%s^V learned the hard way that not all hugs are friendly.",
+                "In the epic tale of %s^V versus the ground, the ground emerged victorious!",
+                "Note to self: When %s^V is around, watch out for falling players!",
+                "%s^V's attempt at a sneak attack turned into a squishy surprise!",
+                "Squish, squash, splat! %s^V's fate on the battlefield.",
+                "Next time, %s^V should look both ways before crossing the battlefield.",
+                "Friendly fire takes a new meaning when %s^V is on your team!",
+                "News flash: %s^V just discovered the floor is not a trampoline.",
+                "When %s^V said they wanted a foot massage, this wasn't what they had in mind!",
+                "They say laughter is the best medicine. %s^V disagrees after being squashed.",
+                "%s^V's attempt at a tactical roll turned into a tactical pancake.",
+                "Gravity's favorite pastime? Turning %s^V into a pancake!",
+                "If %s^V were a pancake, they'd be the flat and not-so-tasty kind!",
+                "When %s^V said they wanted to be closer to the action, this wasn't what they had in mind!",
             }
 
             local randomMessage = messages[math.random(1, #messages)]
