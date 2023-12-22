@@ -6,7 +6,7 @@
 + mod.lua : lancer plusieurs scripts lua avec un seul fichier.
 + radar.lua : désactiver le brouillard et l'herbe.
 + stats.lua : Stats headshots + meilleur tireur en fonction des armes.
-+ vote.lua : permet de voter pour un emap (like/dislike).
++ vote.lua : permet de voter pour une map (like/dislike).
 + feedback_v4.lua : un upgrade de la version "vote.lua".
 
 ## Feedback_v4.lua
