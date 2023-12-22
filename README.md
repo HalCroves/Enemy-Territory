@@ -8,3 +8,11 @@
 + stats.lua : Stats headshots + meilleur tireur en fonction des armes.
 + vote.lua : permet de voter pour un emap (like/dislike).
 + feedback_v4.lua : un upgrade de la version "vote.lua".
+
+## Feedback_v4.lua
+> [!NOTE]
+> There are two variables that can be used:
+>+ Show percentage for each vote -> False|true
+>```local ShowPercentageForEachVote = false```
+>+ Show percentage at the end of the card -> False|true
+>```local ShowNumberVotesAtTheEnd = true```
