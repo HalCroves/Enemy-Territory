@@ -42,7 +42,7 @@ function chargerVotes(fichierVotes)
 end
 
 Modname = "Vote like or dislike - HalCroves/Bertha"
-Version = "2.0"
+Version = "2.2"
 
 -- Table pour stocker les joueurs ayant déjà voté
 local playersVoted = {}
@@ -62,6 +62,17 @@ local votes = {
     dislike = 0,
     totalVotes = 0,
 }
+-- don't touche this
+local MAX_VOTES_PER_MAP = 3
+
+-- Show percentage for each vote
+-- False/true
+local ShowPercentageForEachVote = false
+
+-- Show percentage at the end of map
+-- False/true
+local ShowNumberVotesAtTheEnd = true
+
 
 function et_InitGame(leveltime, randomseed, restart)
     et.G_Print("^z[" .. Modname .. "^z] Version:" .. Version .. " Loaded\n")
@@ -127,8 +138,6 @@ local function splitString(inputString, delimiter)
     end
     return parts
 end
-
-local MAX_VOTES_PER_MAP = 3
 
 -- Fonction pour sauvegarder les votes dans un fichier
 local function sauvegarderVotes(addVote, clientNum, mapname)
@@ -249,6 +258,100 @@ local function hasPlayerVoted(clientNum, mapname)
     return false
 end
 
+-- Mettre un code couleur en fonction du pourcentage
+local function getColorCode(pourcentage)
+    if pourcentage >= 75 then
+        return "^2"  -- Vert pourcentage élevé
+    elseif pourcentage >= 50 then
+        return "^3"  -- Orange pourcentage moyen
+    else
+        return "^1"  -- Rouge pourcentage bas
+    end
+end
+
+-- Fonction pour extraire le pourcentage de "liked map"
+local function extractLikedMapPercentage(mapname)
+    local fichierVotes = dossierVotes .. "vote_" .. mapname .. ".txt"
+
+    local fichier = io.open(fichierVotes, "r")
+    if not fichier then
+        return 0  -- Retourner 0 en cas d'erreur ou si le fichier n'existe pas
+    else
+        --et.G_Print("Fichier OK")
+    end
+
+    local pourcentageLiked = 0
+
+    -- Recherche de la ligne contenant "Liked map"
+    local likedMapLine
+    for line in fichier:lines() do
+        if line:find("Liked map:") then
+            likedMapLine = line
+            break
+        end
+    end
+
+    -- Extraction du pourcentage si la ligne est trouvée
+    if likedMapLine then
+        local value = likedMapLine:match("(%d+)%%")
+        if value then
+            --et.G_Print("Liked map trouvé : " .. value)
+            pourcentageLiked = tonumber(value)
+        else
+            --et.G_Print("Pourcentage non trouvé")
+        end
+    else
+        --et.G_Print("Liked map pas vu")
+    end
+
+    fichier:close()
+
+    return pourcentageLiked
+end
+
+-- Fonction pour extraire le nombre de votes "Likes" et "Dislikes"
+local function extractVotes(mapname)
+    local fichierVotes = dossierVotes .. "vote_" .. mapname .. ".txt"
+
+    local fichier = io.open(fichierVotes, "r")
+    if not fichier then
+        return 0, 0, 0  -- Retourner 0 en cas d'erreur ou si le fichier n'existe pas
+    else
+        --et.G_Print("Fichier OK")
+    end
+
+    local likes = 0
+    local dislikes = 0
+    local totalVotes = 0
+
+    -- Recherche des lignes contenant "Likes" et "Dislikes"
+    for line in fichier:lines() do
+        local likesMatch = line:match("Likes: (%d+)")
+        if likesMatch then
+            likes = tonumber(likesMatch)
+        end
+
+        local dislikesMatch = line:match("Dislikes: (%d+)")
+        if dislikesMatch then
+            dislikes = tonumber(dislikesMatch)
+        end
+
+        local totalVotesMatch = line:match("Total Votes: (%d+)")
+        if totalVotesMatch then
+            totalVotes = tonumber(totalVotesMatch)
+        end
+
+        -- Sortir de la boucle si les trois informations sont trouvées
+        if likes > 0 and dislikes > 0 and totalVotes > 0 then
+            break
+        end
+    end
+
+    fichier:close()
+
+    return likes, dislikes, totalVotes
+end
+
 -- Fonction de vote -> LIKE
 local function likeCommand(clientNum, mapname)
     local playerName = et.gentity_get(clientNum, "pers.netname")
@@ -272,12 +375,20 @@ local function likeCommand(clientNum, mapname)
     if not hasPlayerVoted(clientNum, mapname) then
         votes.like = votes.like + 1
         votes.totalVotes = votes.totalVotes + 1
-        et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7gave a ^2LIKE ^7for ^3"..mapname.." ^7map!\"")
 
         -- Marquer le joueur comme ayant voté
         playersVoted[clientNum] = addVote
         -- Sauvegarder les votes après chaque nouveau vote
         sauvegarderVotes(addVote, clientNum, mapname)
+
+        -- Ajouter le % de like, doit être appelé après l'enregistrement de vote, sinon il y a décalage
+        if ShowPercentageForEachVote == true then 
+            local pourcentageLiked = extractLikedMapPercentage(mapname)
+            local colorCode = getColorCode(pourcentageLiked)
+            et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7gave a ^2LIKE ^7for ^3"..mapname.." ^7map! Liked map: " .. colorCode.. pourcentageLiked .. "/100.\"")
+        else
+            et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7gave a ^2LIKE ^7for ^3"..mapname.." ^7map!\"")
+        end
     else
         -- Le joueur a déjà voté
         local previousVote = playersVoted[clientNum]
@@ -286,10 +397,19 @@ local function likeCommand(clientNum, mapname)
         else
             votes.like = votes.like + 1
             votes.dislike = votes.dislike - 1
-            et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7changed their vote to ^2LIKE^7 for ^3"..mapname.." ^7map!\"")
+            
             -- Mettre à jour le fichier "players_vote_<mapname>.txt"
             playersVoted[clientNum] = addVote
             sauvegarderVotes(addVote, clientNum, mapname)
+
+            -- Ajouter le % de like, doit être appelé après l'enregistrement de vote, sinon il y a décalage
+            if ShowPercentageForEachVote == true then 
+                local pourcentageLiked = extractLikedMapPercentage(mapname)
+                local colorCode = getColorCode(pourcentageLiked)
+                et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7changed their vote to ^2LIKE^7 for ^3"..mapname.." ^7map! Liked map: " .. colorCode.. pourcentageLiked .. "/100.\"")
+            else 
+                et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7changed their vote to ^2LIKE^7 for ^3"..mapname.." ^7map!\"")
+            end
         end
     end
 end
@@ -315,12 +435,20 @@ local function dislikeCommand(clientNum, mapname)
     if not hasPlayerVoted(clientNum, mapname) then
         votes.dislike = votes.dislike + 1
         votes.totalVotes = votes.totalVotes + 1
-        et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7gave a ^1DISLIKE ^7for ^3"..mapname.." ^7map!\"")
 
         -- Marquer le joueur comme ayant voté
         playersVoted[clientNum] = addVote
         -- Sauvegarder les votes après chaque nouveau vote
         sauvegarderVotes(addVote, clientNum, mapname)
+        
+        -- Ajouter le % de like, doit être appelé après l'enregistrement de vote, sinon il y a décalage
+        if ShowPercentageForEachVote == true then 
+            local pourcentageLiked = extractLikedMapPercentage(mapname)
+            local colorCode = getColorCode(pourcentageLiked)
+            et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7gave a ^1DISLIKE ^7for ^3"..mapname.." ^7map! Liked map: " .. colorCode.. pourcentageLiked .. "/100.\"")
+        else
+            et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7gave a ^1DISLIKE ^7for ^3"..mapname.." ^7map!\"")
+        end
     else
         -- Le joueur a déjà voté
         local previousVote = playersVoted[clientNum]
@@ -329,10 +457,19 @@ local function dislikeCommand(clientNum, mapname)
         else
             votes.like = votes.like - 1
             votes.dislike = votes.dislike + 1
-            et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7changed their vote to ^1DISLIKE^7 for ^3"..mapname.." ^7map!\"")
+            
             -- Mettre à jour le fichier "players_vote_<mapname>.txt"
             playersVoted[clientNum] = addVote
             sauvegarderVotes(addVote, clientNum, mapname)
+
+            -- Ajouter le % de like, doit être appelé après l'enregistrement de vote, sinon il y a décalage
+            if ShowPercentageForEachVote == true then
+                local pourcentageLiked = extractLikedMapPercentage(mapname)
+                local colorCode = getColorCode(pourcentageLiked)
+                et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7changed their vote to ^1DISLIKE^7 for ^3"..mapname.." ^7map! Liked map: " .. colorCode.. pourcentageLiked .. "/100.\"")
+            else
+                et.trap_SendServerCommand(-1, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7changed their vote to ^1DISLIKE^7 for ^3"..mapname.." ^7map!\"")
+            end
         end
     end
 end
@@ -387,11 +524,18 @@ local feedbackMessageSent = false
 -- Fonction pour vérifier si la carte est terminée
 local function checkGameEnd()
     local gameState = et.trap_Cvar_Get("gamestate")
+    local mapname = et.trap_Cvar_Get("mapname")
 
     -- 3 pour "GAME_STATE_POSTGAME"
     if gameState == "3" and not feedbackMessageSent then
         -- La carte est terminée, envoyez un message à tous les joueurs
-        et.trap_SendServerCommand(-1, "chat \"^3Map Feedback: ^7Do you like the map? Open console and type ^2/like ^7or ^1/dislike^7. Thanks for your feedback! \"")
+        et.trap_SendServerCommand(-1, "chat \"^3Map Feedback: ^7Do you like the map? Type ^2+ ^7or ^1-^7. Thanks for your feedback! \"")
+
+        -- Afficher le nombre de vote à la fin
+        if ShowNumberVotesAtTheEnd == true then
+            local liked, disliked = extractVotes(mapname)
+            et.trap_SendServerCommand(-1, "chat \"^3Current Votes:^7 "..liked.." likes and "..disliked.." dislikes.\"")
+        end
 
         -- Marquer que le message a été envoyé
         feedbackMessageSent = true
