@@ -1,13 +1,17 @@
--- Fonction pour vérifier si l'adresse MAC commence par la chaîne spécifiée
-function starts_with(str, start)
-   return str and str:sub(1, #start) == start
-end
+-- Liste des adresses MAC à kicker
+local macAddressesToKick = {
+    "XX-XX-XX",
+    "YY-YY-YY",
+}
 
-function extractMacAddress(userinfo)
-   -- Extraire l'adresse MAC du userinfo.
-   local _, _, macAddress = string.find(userinfo, "\\x\\([%w%-]+)\\")
-   
-   return macAddress or "N/A"
+-- Fonction pour vérifier si l'adresse MAC est dans la liste des adresses à kicker
+function isMacAddressToKick(macAddress)
+    for _, address in ipairs(macAddressesToKick) do
+        if starts_with(macAddress, address) then
+            return true
+        end
+    end
+    return false
 end
 
 function et_ClientConnect(clientNum, firstTime, isBot)
@@ -19,8 +23,8 @@ function et_ClientConnect(clientNum, firstTime, isBot)
    -- DEBUG : Afficher l'adresse mac
    -- et.G_Print("Adresse MAC du joueur connecté : " .. macAddress .. "\n")
    
-   -- Vérifier si l'adresse MAC commence par "XX-XX-XX"
-   if starts_with(macAddress, "XX-XX-XX") then
+   -- Vérifier si l'adresse MAC est dans la liste à kicker
+   if isMacAddressToKick(macAddress) then
       -- Si oui, kicker le joueur
       et.trap_DropClient(clientNum, "Kicked by admin", 600) -- kick for 10 mins
    else
