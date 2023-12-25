@@ -4,6 +4,11 @@ local macAddressesToKick = {
     "YY-YY-YY",
 }
 
+-- Fonction pour vérifier si l'adresse MAC commence par la chaîne spécifiée
+function starts_with(str, start)
+   return str and str:sub(1, #start) == start
+end
+
 -- Fonction pour vérifier si l'adresse MAC est dans la liste des adresses à kicker
 function isMacAddressToKick(macAddress)
     for _, address in ipairs(macAddressesToKick) do
