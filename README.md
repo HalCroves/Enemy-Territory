@@ -1,6 +1,7 @@
 # Enemy-Territory
 
 ## Liste des scripts lua
++ balance.lua : équilibre automatiquement les teams.
 + funnymsg.lua : afficher des messages troll en fonction de la mort du joueur.
 + hs_stats.lua : afficher les stats d'headshots par arme.
 + mod.lua : lancer plusieurs scripts lua avec un seul fichier.
