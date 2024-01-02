@@ -17,3 +17,9 @@
 >```local ShowPercentageForEachVote = false```
 >+ Show percentage at the end of the card -> False|true
 >```local ShowNumberVotesAtTheEnd = true```
+
+## balance.lua
+> [!NOTE]
+> There are one variable that can be modified:
+>+ Check time 
+>```max_unevenTime = 20```
