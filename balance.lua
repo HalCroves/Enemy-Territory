@@ -10,64 +10,97 @@ function et_RunFrame(levelTime)
     local numAlliedPlayers = #alliedPlayers
     local numAxisPlayers = #axisPlayers
 
-    -- Compter le nombre de vrais joueurs dans chaque équipe
+    -- Count the number of real players in each team
+    local numAlliedRealPlayers = 0
+    local numAxisRealPlayers = 0
+
+    -- Count the number of bots in each team
     local numAlliedBots = 0
     local numAxisBots = 0
+
     local maxClients = tonumber(et.trap_Cvar_Get("sv_maxclients"))
 
     for i = 0, maxClients - 1 do
         local team = tonumber(et.gentity_get(i, "sess.sessionTeam"))
         local isBot = tonumber(et.gentity_get(i, "pers.localClient"))
 
-        if isBot == 0 then
-            if team == 1 then
-                numAxisBots = numAxisBots + 1
-            elseif team == 2 then
-                numAlliedBots = numAlliedBots + 1
+        if team ~= nil and isBot ~= nil then
+            if isBot == 0 then
+                if team == 1 then
+                    numAxisRealPlayers = numAxisRealPlayers + 1
+                elseif team == 2 then
+                    numAlliedRealPlayers = numAlliedRealPlayers + 1
+                end
+            elseif isBot == 1 then
+                if team == 1 then
+                    numAxisBots = numAxisBots + 1
+                elseif team == 2 then
+                    numAlliedBots = numAlliedBots + 1
+                end
             end
         end
     end
 
-    et.G_Print("Resetting Uneven Time\n")
-    et.G_Print("Num Allied Players: " .. numAlliedPlayers .. ", Num Axis Players: " .. numAxisPlayers .. "\n")
-    et.G_Print("Num Allied Bots: " .. numAlliedBots .. ", Num Axis Bots: " .. numAxisBots .. "\n")
-
-    if numAlliedPlayers >= (numAxisPlayers + numAxisBots + max_unevenDiff) then
+    -- Balance teams based on real players
+    if numAlliedRealPlayers >= (numAxisRealPlayers + unevenDiff) then
         local clientNum = alliedPlayers[numAlliedPlayers]
-        et.trap_SendConsoleCommand(et.EXEC_APPEND, "put " .. clientNum .. " r ; qsay équilibrage des équipes... " .. et.gentity_get(clientNum, "pers.netname") .. "^7 déplacé vers ^1AXIS")
-    elseif numAxisPlayers >= (numAlliedPlayers + numAlliedBots + max_unevenDiff) then
+        et.trap_SendConsoleCommand(et.EXEC_APPEND, "put " .. clientNum .. " r ; qsay Team balancing... " .. et.gentity_get(clientNum, "pers.netname") .. "^7 moved to ^1AXIS")
+    elseif numAxisRealPlayers >= (numAlliedRealPlayers + unevenDiff) then
         local clientNum = axisPlayers[numAxisPlayers]
-        et.trap_SendConsoleCommand(et.EXEC_APPEND, "put " .. clientNum .. " b ; qsay équilibrage des équipes... " .. et.gentity_get(clientNum, "pers.netname") .. "^7 déplacé vers ^4ALLIES")
-    elseif numAlliedPlayers >= (numAxisPlayers + numAxisBots + unevenDiff) then
-        if unevenTime > 0 then
-            if tonumber(levelTime) - unevenTime >= max_unevenTime * 1000 then
-                local clientNum = alliedPlayers[numAlliedPlayers]
-                et.trap_SendConsoleCommand(et.EXEC_APPEND, "put " .. clientNum .. " r ; qsay équilibrage des équipes... " .. et.gentity_get(clientNum, "pers.netname") .. "^7 déplacé vers ^1AXIS")
-            end
-        else
-            unevenTime = tonumber(levelTime)
-        end
-    elseif numAxisPlayers >= (numAlliedPlayers + numAlliedBots + unevenDiff) then
-        if unevenTime > 0 then
-            if tonumber(levelTime) - unevenTime >= max_unevenTime * 1000 then
-                local clientNum = axisPlayers[numAxisPlayers]
-                et.trap_SendConsoleCommand(et.EXEC_APPEND, "put " .. clientNum .. " b ; qsay équilibrage des équipes... " .. et.gentity_get(clientNum, "pers.netname") .. "^7 déplacé vers ^4ALLIES")
-            end
-        else
-            unevenTime = tonumber(levelTime)
-        end
+        et.trap_SendConsoleCommand(et.EXEC_APPEND, "put " .. clientNum .. " b ; qsay Team balancing... " .. et.gentity_get(clientNum, "pers.netname") .. "^7 moved to ^4ALLIES")
+    elseif numAlliedRealPlayers >= (numAxisRealPlayers + max_unevenDiff) then
+        local clientNum = alliedPlayers[numAlliedPlayers]
+        et.trap_SendConsoleCommand(et.EXEC_APPEND, "put " .. clientNum .. " r ; qsay Team balancing... " .. et.gentity_get(clientNum, "pers.netname") .. "^7 moved to ^1AXIS")
+    elseif numAxisRealPlayers >= (numAlliedRealPlayers + max_unevenDiff) then
+        local clientNum = axisPlayers[numAxisPlayers]
+        et.trap_SendConsoleCommand(et.EXEC_APPEND, "put " .. clientNum .. " b ; qsay Team balancing... " .. et.gentity_get(clientNum, "pers.netname") .. "^7 moved to ^4ALLIES")
     else
-        et.G_Print("No Uneven Teams\n")
         unevenTime = -1
     end
+
+    -- Balance teams based on bots
+    if numAlliedBots > numAxisBots + unevenDiff then
+        local numBotsToMove = numAlliedBots - numAxisBots
+        for i = 1, numBotsToMove do
+            local botNum = findBotOnTeam(2)  -- Find a bot in the Allies team
+            if botNum ~= nil then
+                et.trap_SendConsoleCommand(et.EXEC_APPEND, "put " .. botNum .. " r ; qsay Team balancing... " .. et.gentity_get(botNum, "pers.netname") .. "^7 moved to ^1AXIS")
+            else
+                break
+            end
+        end
+    elseif numAxisBots > numAlliedBots + unevenDiff then
+        local numBotsToMove = numAxisBots - numAlliedBots
+        for i = 1, numBotsToMove do
+            local botNum = findBotOnTeam(1)  -- Find a bot in the Axis team
+            if botNum ~= nil then
+                et.trap_SendConsoleCommand(et.EXEC_APPEND, "put " .. botNum .. " b ; qsay Team balancing... " .. et.gentity_get(botNum, "pers.netname") .. "^7 moved to ^4ALLIES")
+            else
+                break
+            end
+        end
+    end
+end
+
+function findBotOnTeam(team)
+    local maxClients = tonumber(et.trap_Cvar_Get("sv_maxclients"))
+
+    for i = 0, maxClients - 1 do
+        local teamNum = tonumber(et.gentity_get(i, "sess.sessionTeam"))
+        local isBot = tonumber(et.gentity_get(i, "pers.localClient"))
+
+        if teamNum == team and isBot == 1 then
+            return i
+        end
+    end
+
+    return nil
 end
 
 function et_ClientSpawn(clientNum, revived, teamChange, restoreHealth)
     if teamChange ~= 0 then
         local team = tonumber(et.gentity_get(clientNum, "sess.sessionTeam"))
         local isBot = tonumber(et.gentity_get(clientNum, "pers.localClient"))
-
-        et.G_Print("Player Spawned - Client: " .. clientNum .. ", Team: " .. team .. ", IsBot: " .. isBot .. "\n")
 
         if isBot == 0 then
             local numAlliedPlayers = #alliedPlayers
@@ -81,17 +114,9 @@ function et_ClientSpawn(clientNum, revived, teamChange, restoreHealth)
                     end
                 end
 
-                for i, num in ipairs(axisPlayers) do
-                    if num == clientNum then
-                        return
-                    end
-                end
-
                 if numAlliedPlayers >= numAxisPlayers + unevenDiff then
-                    et.G_Print("Adding Player to Axis\n")
                     table.insert(axisPlayers, 1, clientNum)
                 else
-                    et.G_Print("Adding Player to Axis\n")
                     table.insert(axisPlayers, clientNum)
                 end
             elseif team == 2 then
@@ -102,32 +127,10 @@ function et_ClientSpawn(clientNum, revived, teamChange, restoreHealth)
                     end
                 end
 
-                for i, num in ipairs(alliedPlayers) do
-                    if num == clientNum then
-                        return
-                    end
-                end
-
                 if numAxisPlayers >= numAlliedPlayers + unevenDiff then
-                    et.G_Print("Adding Player to Allied\n")
                     table.insert(alliedPlayers, 1, clientNum)
                 else
-                    et.G_Print("Adding Player to Allied\n")
                     table.insert(alliedPlayers, clientNum)
-                end
-            else
-                for i, num in ipairs(alliedPlayers) do
-                    if num == clientNum then
-                        table.remove(alliedPlayers, i)
-                        return
-                    end
-                end
-
-                for i, num in ipairs(axisPlayers) do
-                    if num == clientNum then
-                        table.remove(axisPlayers, i)
-                        return
-                    end
                 end
             end
         end
