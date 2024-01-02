@@ -173,7 +173,7 @@ function et_ClientSpawn(clientNum, revived, teamChange, restoreHealth)
     end
 end
 
-function et_ClientConnect(clientNum)
+function et_ClientConnect(clientNum,firstTime,isBot)
     -- Add the new player to the newPlayers table
     table.insert(newPlayers, clientNum)
 end
