@@ -1,3 +1,10 @@
+modname = "Auto balance"
+version = "0.2"
+
+function et_InitGame(levelTime,randomSeed,restart)
+	et.RegisterModname(modname .. " " .. version)
+end
+
 unevenDiff = 2
 max_unevenTime = 20
 max_unevenDiff = 4
