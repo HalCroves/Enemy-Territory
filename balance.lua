@@ -5,8 +5,16 @@ function et_InitGame(levelTime,randomSeed,restart)
 	et.RegisterModname(modname .. " " .. version)
 end
 
+-- Max diff pour les joueurs (laisser 2)
 unevenDiff = 2
+
+-- Max diff pour les bots (laisser 1 (permet de faire du 2v2 au lieu du 1v3))
+unevenBotDiff = 1
+
+-- Temps de check
 max_unevenTime = 20
+
+-- Max diff pour les joueurs (laisser 4)
 max_unevenDiff = 4
 
 axisPlayers = {}
@@ -66,7 +74,7 @@ function et_RunFrame(levelTime)
     end
 
     -- Balance teams based on bots
-    if numAlliedBots > numAxisBots + unevenDiff then
+    if numAlliedBots > numAxisBots + unevenBotDiff then
         local numBotsToMove = numAlliedBots - numAxisBots
         for i = 1, numBotsToMove do
             local botNum = findBotOnTeam(2)  -- Find a bot in the Allies team
@@ -76,7 +84,7 @@ function et_RunFrame(levelTime)
                 break
             end
         end
-    elseif numAxisBots > numAlliedBots + unevenDiff then
+    elseif numAxisBots > numAlliedBots + unevenBotDiff then
         local numBotsToMove = numAxisBots - numAlliedBots
         for i = 1, numBotsToMove do
             local botNum = findBotOnTeam(1)  -- Find a bot in the Axis team
