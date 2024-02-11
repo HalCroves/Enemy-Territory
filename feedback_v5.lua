@@ -1,6 +1,7 @@
 --[[
 Prerequisites:
- - Create a "votes" folder at the root of the server.
+ - Create a "votes" folder on the nitmod repertory.
+ Ex : \nitmod\votes
 ]]
 
 -- Fonction pour supprimer les espaces blancs au début et à la fin d'une chaîne
@@ -94,7 +95,7 @@ function chargerVotes(fichierVotes)
 end
 
 Modname = "Vote like or dislike - HalCroves/Bertha"
-Version = "2.3"
+Version = "2.5"
 
 -- Table pour stocker les joueurs ayant déjà voté
 local playersVoted = {}
@@ -125,8 +126,11 @@ local ShowPercentageForEachVote = false
 -- False/true
 local ShowNumberVotesAtTheEnd = true
 
+-- Show percentage at the first of map
+-- False/true
+local ShowNumberVotesAtTheFirst = true
 
-function et_InitGame(leveltime, randomseed, restart)
+function et_InitGame(levelTime, randomseed, restart)
     et.G_Print("^z[" .. Modname .. "^z] Version:" .. Version .. " Loaded\n")
     et.RegisterModname(et.Q_CleanStr(Modname) .. "   " .. Version .. "   " .. et.FindSelf())
 
@@ -143,6 +147,8 @@ function et_InitGame(leveltime, randomseed, restart)
 
     -- Réinitialiser le marqueur feedbackMessageSent
     feedbackMessageSent = false
+
+    MessageSentTop = false
 
     -- Nom du fichier de sauvegarde pour les joueurs ayant voté pour la map actuelle
     local fichierPlayersVotes = dossierVotes .. "players_vote_" .. mapname .. ".txt"
@@ -404,7 +410,6 @@ local function dislikeCommand(clientNum, mapname)
         et.trap_SendServerCommand(clientNum, "chat \"^3Map Feedback:^7 " .. playerName .. " ^7you have reached the maximum number of votes on ^3" .. mapname .. " ^7map!\"")
         return
     end
-
     
     if hasVoted then
         if previousVote == addVote then
@@ -492,13 +497,17 @@ function et_ClientCommand(clientNum, command)
     return 0
 end
 
--- Variable pour suivre si le message a déjà été envoyé
+-- Variable pour suivre si le message a déjà été envoyé en fin de map
 local feedbackMessageSent = false
 
+-- Variable pour suivre si le message a déjà été envoyé en début de map
+local MessageSentTop = false
+
 -- Fonction pour vérifier si la carte est terminée
-local function checkGameEnd()
+local function checkStatusGame()
     local gameState = et.trap_Cvar_Get("gamestate")
     local mapname = et.trap_Cvar_Get("mapname")
+    local warmup = et.trap_Cvar_Get("g_warmup")
 
     -- 3 pour "GAME_STATE_POSTGAME"
     if gameState == "3" and not feedbackMessageSent then
@@ -514,8 +523,22 @@ local function checkGameEnd()
         -- Marquer que le message a été envoyé
         feedbackMessageSent = true
     end
+
+    -- 0 la map vient de commencer
+    if gameState == "0" and not MessageSentTop then
+        -- Afficher le nombre de vote en début de map
+        if ShowNumberVotesAtTheFirst == true then
+            local liked, disliked = extractVotes(mapname)
+            et.trap_SendServerCommand(et.EXEC_APPEND, "chat \"^3Map Feedback: ^7Do you like the map? Type ^2!like ^7or ^1!dislike^7. Thanks for your feedback! \"")
+            et.trap_SendConsoleCommand(et.EXEC_APPEND, "chat ^3Current Votes:^7 "..liked.." likes and "..disliked.." dislikes.\n");
+        end
+
+        -- Marquer que le message a été envoyé
+        MessageSentTop = true
+    end
+    
 end
 
 function et_RunFrame(levelTime)
-    checkGameEnd()
+    checkStatusGame()
 end
