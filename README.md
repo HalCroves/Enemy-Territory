@@ -45,4 +45,4 @@
 
 ## kick_by_mac.lua
 > [!NOTE]
-> Possibilité de renseigner une adresse mac complete ou de rendeigner un début d'adresse ma
+> Possibilité de renseigner une adresse mac complète ou de renseigner un début d'adresse mac.
