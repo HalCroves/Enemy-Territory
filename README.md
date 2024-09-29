@@ -42,3 +42,7 @@
 >```local ShowPercentageForEachVote = false```
 >+ Show percentage at the end of the card -> False|true
 >```local ShowNumberVotesAtTheEnd = true```
+
+## kick_by_mac.lua
+> [!NOTE]
+> Possibilité de renseigner une adresse mac complete ou de rendeigner un début d'adresse ma
