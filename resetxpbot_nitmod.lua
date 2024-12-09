@@ -3,7 +3,7 @@ local gameStarted = false
 
 function et_InitGame(levelTime, randomSeed, restart)
     gameStarted = false
-    et.G_Print("InitGame: Le jeu a été initialisé. En attente de début de la partie...\n")
+    -- et.G_Print("InitGame: Le jeu a été initialisé. En attente de début de la partie...\n")
 end
 
 function et_RunFrame(levelTime)
@@ -29,10 +29,10 @@ function isBot(clientNum)
     local guid = string.match(userinfo, "\\n_guid\\([^\\]+)")
 
     if guid and string.find(guid, "BOT") then
-        et.G_Print("isBot: Client " .. clientNum .. " est identifié comme un bot (GUID: " .. guid .. ").\n")
+        -- et.G_Print("isBot: Client " .. clientNum .. " est identifié comme un bot (GUID: " .. guid .. ").\n")
         return true
     else
-        et.G_Print("isBot: Client " .. clientNum .. " n'est pas un bot (GUID: " .. tostring(guid) .. ").\n")
+        -- et.G_Print("isBot: Client " .. clientNum .. " n'est pas un bot (GUID: " .. tostring(guid) .. ").\n")
         return false
     end
 end
@@ -43,7 +43,7 @@ function resetBotsXP()
     for i = 0, maxClients - 1 do
         -- Vérifie si identifié comme bot
         if isBot(i) then
-            et.G_Print("resetBotsXP: Reset XP pour le bot avec l'ID: " .. i .. "\n")
+            -- et.G_Print("resetBotsXP: Reset XP pour le bot avec l'ID: " .. i .. "\n")
             et.trap_SendConsoleCommand(et.EXEC_APPEND, "!resetxp " .. i .. "\n")
         end
     end
