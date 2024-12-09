@@ -14,6 +14,7 @@
 + radar.lua : désactiver le brouillard et l'herbe.
 + stats.lua : Stats headshots + meilleur tireur en fonction des armes.
 + feedback_v4.lua : permet de voter pour une map (like/dislike).
++ resetxpbot.lua : permet de remettre à zéro l'xp des bots au début de chaque map.
 
 ## balance.lua
 > [!NOTE]
@@ -46,3 +47,9 @@
 ## kick_by_mac.lua
 > [!NOTE]
 > Possibilité de renseigner une adresse mac complète ou de renseigner un début d'adresse mac.
+
+## resetxpbot.lua
+> [!NOTE]
+> There are one variable that can be modified:
+>+ Enable/disable the resetxpbot : true/false
+>```local resetXPBot = true```
