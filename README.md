@@ -48,7 +48,7 @@
 > [!NOTE]
 > Possibilité de renseigner une adresse mac complète ou de renseigner un début d'adresse mac.
 
-## resetxpbot.lua
+## resetxpbot_nitmod.lua
 > [!NOTE]
 > There are one variable that can be modified:
 >+ Enable/disable the resetxpbot : true/false
