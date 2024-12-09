@@ -14,7 +14,7 @@
 + radar.lua : désactiver le brouillard et l'herbe.
 + stats.lua : Stats headshots + meilleur tireur en fonction des armes.
 + feedback_v4.lua : permet de voter pour une map (like/dislike).
-+ resetxpbot.lua : permet de remettre à zéro l'xp des bots au début de chaque map.
++ resetxpbot_nitmod.lua : permet de remettre à zéro l'xp des bots au début de chaque map.
 
 ## balance.lua
 > [!NOTE]
