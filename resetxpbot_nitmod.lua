@@ -13,9 +13,9 @@ function et_RunFrame(levelTime)
     if not gameStarted then
         if gamestate == 0 then
             gameStarted = true
-			if resetXPBot == true then
-            	resetBotsXP()
-			end
+            if resetXPBot == true then
+                resetBotsXP()
+            end
         end
     end
 end
