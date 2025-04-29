@@ -17,6 +17,15 @@ local messageKick = "You have been kicked by the administrator for a security po
 local badPseudo = "You have been kicked for using an unauthorized name." -- message de kick (pseudo changed)
 local newPseudo = "Ilove|Ps|"
 
+-- Liste des GUID autorisés (whitelist)
+local allowGuids = {
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", -- ETPlayer
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", -- ETPlayer
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", -- ETPlayer
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", -- ETPlayer
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", -- ETPlayer
+}
+
 function setTimer(clientNum, delay)
    local timer = {
       startTime = et.trap_Milliseconds(),
@@ -26,38 +35,56 @@ function setTimer(clientNum, delay)
    table.insert(timers, timer)
 end
 
+-- Fonction pour vérifier si le GUID est autorisé
+function isGuidAllowed(clientNum)
+    local userinfo = et.trap_GetUserinfo(clientNum)
+    local _, _, guid = string.find(userinfo, "cl_guid\\([^\\]+)\\")
+    
+    if guid then
+        for _, allowedGuid in ipairs(allowGuids) do
+            if guid == allowedGuid then
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+
 function checkMacAddress(clientNum, isBot)
-   -- Si c'est un bot, ne pas effectuer de vérification
-   if isBot then
-      return
-   end
+    -- Si c'est un bot, ne pas effectuer de vérification
+    if isBot then
+        return
+    end
 
-   local userinfo = et.trap_GetUserinfo(clientNum)
-   
-   -- Obtenir l'adresse MAC du userinfo.
-   local macAddress = extractMacAddress(userinfo)
+    local userinfo = et.trap_GetUserinfo(clientNum)
+    
+    -- Vérifier si le GUID est autorisé
+    if isGuidAllowed(clientNum) then
+        -- Ignorer les joueurs ayant un GUID autorisé
+        return
+    end
 
-   -- DEBUG : Afficher l'adresse mac
-   -- et.G_Print("Adresse MAC du joueur connecté : " .. macAddress .. "\n")
+    -- Obtenir l'adresse MAC du userinfo.
+    local macAddress = extractMacAddress(userinfo)
 
-   -- Vérifier l'adresse MAC spécifique "00-00-00-00"
-   if macAddress == "00-00-00-00" then
-      -- Si l'adresse MAC est "00-00-00-00", kicker immédiatement
-      et.trap_DropClient(clientNum, messageKick, 0)
-      return
-   end
+    -- Vérifier l'adresse MAC spécifique "00-00-00-00"
+    if macAddress == "00-00-00-00" then
+        -- Si l'adresse MAC est "00-00-00-00", kicker immédiatement
+        et.trap_DropClient(clientNum, messageKick, 0)
+        return
+    end
 
-   -- Vérifier si l'adresse MAC est dans la liste des adresses à vérifier
-   for _, allowedMAC in ipairs(macAddressesToCheck) do
-      if starts_with(macAddress, allowedMAC) then
-         -- Si oui, mettre le joueur en spectateur 
-         et.trap_SendConsoleCommand(et.EXEC_APPEND, "put " .. clientNum .. " s")
-         -- Puis kicker le joueur
-         et.trap_DropClient(clientNum, messageKick, 0) -- kick immédiatement
-         return -- Sortir de la boucle dès qu'une correspondance est trouvée
-      end
-   end
-   -- et.G_Print("MAC : " .. (macAddress or "N/A") .. "\n")
+    -- Vérifier si l'adresse MAC est dans la liste des adresses à vérifier
+    for _, allowedMAC in ipairs(macAddressesToCheck) do
+        if starts_with(macAddress, allowedMAC) then
+            -- Si oui, mettre le joueur en spectateur 
+            et.trap_SendConsoleCommand(et.EXEC_APPEND, "put " .. clientNum .. " s")
+            -- Puis kicker le joueur
+            et.trap_DropClient(clientNum, messageKick, 0) -- kick immédiatement
+            return -- Sortir de la boucle dès qu'une correspondance est trouvée
+        end
+    end
 end
 
 function checkTimers(levelTime)
@@ -74,10 +101,10 @@ function checkTimers(levelTime)
 end
 
 function et_ClientConnect(clientNum, firstTime, isBot)
-   -- Enregistrer un temporisateur pour retarder l'exécution de la vérification de l'adresse MAC
-   setTimer(clientNum, checkInterval)
-   -- Appeler directement checkMacAddress pour gérer les cas spécifiques comme "00-00-00-00"
-   checkMacAddress(clientNum, isBot)
+    -- Enregistrer un temporisateur pour retarder l'exécution de la vérification de l'adresse MAC
+    setTimer(clientNum, checkInterval)
+    -- Appeler directement checkMacAddress pour gérer les cas spécifiques comme "00-00-00-00"
+    checkMacAddress(clientNum, isBot)
 end
 
 function et_ClientUserinfoChanged(clientNum)
