@@ -65,12 +65,19 @@ function checkMacAddress(clientNum, isBot)
         return
     end
 
-    -- Obtenir l'adresse MAC du userinfo.
+    -- Obtenir l'adresse MAC du userinfo
     local macAddress = extractMacAddress(userinfo)
+    
+    -- Vérifier si l'adresse MAC est vide ou nulle
+    if macAddress == "N/A" or macAddress == "" then
+        -- Si l'adresse MAC est vide, kicker immédiatement
+        et.trap_DropClient(clientNum, messageKick, 0)
+        return
+    end
 
-    -- Vérifier l'adresse MAC spécifique "00-00-00-00"
-    if macAddress == "00-00-00-00" then
-        -- Si l'adresse MAC est "00-00-00-00", kicker immédiatement
+    -- Vérifier l'adresse MAC spécifique "00-00-00-00-00-00"
+    if macAddress == "00-00-00-00-00-00" then
+        -- Si l'adresse MAC est "00-00-00-00-00-00", kicker immédiatement
         et.trap_DropClient(clientNum, messageKick, 0)
         return
     end
