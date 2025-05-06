@@ -4,7 +4,6 @@ local checkInterval = 10 -- configurer le délai de vérification en millisecond
 --===================================================--
 --==              BLACKLIST MAC ADRESS             ==--
 --===================================================--
-
 local macAddressesToCheck = {
     "00-20-18", -- Cheat
     "88-AE-DD", -- Narkotyk
@@ -16,7 +15,6 @@ local macAddressesToCheck = {
 --===================================================--
 --==              WHITELIST USER GUID              ==--
 --===================================================--
-
 local allowGuids = {
     --"BAA2F454FC56604AD1D96E80DCD738AA", -- Narkotyk
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", -- ETPlayer
@@ -32,13 +30,17 @@ local allowGuids = {
 
 -- Fonction pour extraire l'adresse MAC du userinfo
 function extractMacAddress(userinfo)
-   -- Extraire l'adresse MAC du userinfo.
    local _, _, macAddress = string.find(userinfo, "\\x\\([%w%-]+)\\")
-   
    return macAddress or "N/A"
 end
 
+-- Fonction pour ajouter un timer
 function setTimer(clientNum, delay)
+   for _, timer in ipairs(timers) do
+       if timer.clientNum == clientNum then
+           return
+       end
+   end
    local timer = {
       startTime = et.trap_Milliseconds(),
       delay = delay,
@@ -68,74 +70,43 @@ function isGuidAllowed(clientNum)
     return false
 end
 
---===================================================--
---==                  SPAM PROTECTION              ==--
---===================================================--
-
-function et_ClientConnect(clientNum, firstTime, isBot)
-    -- Enregistrer un temporisateur pour retarder l'exécution de la vérification de l'adresse MAC
-    setTimer(clientNum, checkInterval)
-    -- Appeler directement checkMacAddress pour gérer les cas spécifiques comme "00-00-00-00"
-    checkMacAddress(clientNum, isBot)
-end
-
+-- Fonction pour vérifier la table
 function checkTimers(levelTime)
-   local i = 1
-   while i <= #timers do
-      local timer = timers[i]
-      if levelTime - timer.startTime >= timer.delay then
-         checkMacAddress(timer.clientNum)
-         table.remove(timers, i)
-      else
-         i = i + 1
-      end
+   for i = #timers, 1, -1 do
+       local timer = timers[i]
+       if levelTime - timer.startTime >= timer.delay then
+           checkMacAddress(timer.clientNum)
+           table.remove(timers, i)
+       end
    end
 end
 
-function et_ClientCommand(clientNum, command)
+-- Fonction pour vérifier l'adresse mac / muted
+function checkMacAddress(clientNum)
     local userinfo = et.trap_GetUserinfo(clientNum)
     local macAddress = extractMacAddress(userinfo)
     
-    -- Vérifier si l'adresse MAC est vide ou nulle
     if macAddress == "N/A" or macAddress == "" then
-        -- Player Mute
         et.gentity_set(clientNum, "sess.muted", 1)
-        
-        -- Bloquer la commande "team" si le joueur essaie de rejoindre une équipe
-        local cmd = string.lower(et.trap_Argv(0))
-        if cmd == "team" then
-            -- Spec message
-            et.trap_SendServerCommand(clientNum, "chat \"^sSKONTAKTUJ SIE Z ADMINEM SERWERA ^7--> ^sABY ODBLOKOWAC DOSTEP^q! ^0-------------------------------------------------------------\"")
-            et.trap_SendServerCommand(clientNum, "chat \"^1CONTACT THE SERVER ADMINISTRATOR ^7--> ^1TO UNLOCK^s! ^0-------------------------------------------------------------\"")
-            return 1
-        end
-        return
-    end
-              
-    -- Vérifier si le GUID est autorisé
-    if isGuidAllowed(clientNum) then
-        -- Ignorer les joueurs ayant un GUID autorisé
-        return
-    end
-
-    for _, allowedMAC in ipairs(macAddressesToCheck) do
-        if starts_with(macAddress, allowedMAC) then
-            -- Player Mute
-            et.gentity_set(clientNum, "sess.muted", 1)
-            
-            -- Spam 'Join Team'
-            local cmd = string.lower(et.trap_Argv(0))
-            if cmd == "team" then
-                -- Spec message
-                et.trap_SendServerCommand(clientNum, "chat \"^sSKONTAKTUJ SIE Z ADMINEM SERWERA ^7--> ^sABY ODBLOKOWAC DOSTEP^q! ^0-------------------------------------------------------------\"")
-                et.trap_SendServerCommand(clientNum, "chat \"^1CONTACT THE SERVER ADMINISTRATOR ^7--> ^1TO UNLOCK^s! ^0-------------------------------------------------------------\"")
-                return 1
+    else
+        for _, allowedMAC in ipairs(macAddressesToCheck) do
+            if starts_with(macAddress, allowedMAC) then
+                et.gentity_set(clientNum, "sess.muted", 1)
+                return
             end
         end
+        et.gentity_set(clientNum, "sess.muted", 0)
     end
 end
 
+-- Fonction permettant de déclencher le timer à la connextion
+function et_ClientConnect(clientNum, firstTime, isBot)
+    if isBot then return end
+    -- Enregistrer un temporisateur pour retarder l'exécution de la vérification de l'adresse MAC
+    setTimer(clientNum, checkInterval)
+end
+
+-- Fonction pour vérifier à x moments
 function et_RunFrame(levelTime)
-   -- Cette fonction est appelée à chaque frame
    checkTimers(levelTime)
 end
