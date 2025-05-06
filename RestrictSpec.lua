@@ -1,3 +1,6 @@
+local timers = {} -- Tableau pour stocker les temporisateurs
+local checkInterval = 10 -- configurer le délai de vérification en millisecondes
+
 --===================================================--
 --==              BLACKLIST MAC ADRESS             ==--
 --===================================================--
@@ -35,6 +38,15 @@ function extractMacAddress(userinfo)
    return macAddress or "N/A"
 end
 
+function setTimer(clientNum, delay)
+   local timer = {
+      startTime = et.trap_Milliseconds(),
+      delay = delay,
+      clientNum = clientNum
+   }
+   table.insert(timers, timer)
+end
+
 -- Fonction pour vérifier si une chaîne commence par un préfixe donné
 function starts_with(str, prefix)
     return string.sub(str, 1, string.len(prefix)) == prefix
@@ -59,6 +71,26 @@ end
 --===================================================--
 --==                  SPAM PROTECTION              ==--
 --===================================================--
+
+function et_ClientConnect(clientNum, firstTime, isBot)
+    -- Enregistrer un temporisateur pour retarder l'exécution de la vérification de l'adresse MAC
+    setTimer(clientNum, checkInterval)
+    -- Appeler directement checkMacAddress pour gérer les cas spécifiques comme "00-00-00-00"
+    checkMacAddress(clientNum, isBot)
+end
+
+function checkTimers(levelTime)
+   local i = 1
+   while i <= #timers do
+      local timer = timers[i]
+      if levelTime - timer.startTime >= timer.delay then
+         checkMacAddress(timer.clientNum)
+         table.remove(timers, i)
+      else
+         i = i + 1
+      end
+   end
+end
 
 function et_ClientCommand(clientNum, command)
     local userinfo = et.trap_GetUserinfo(clientNum)
@@ -101,4 +133,9 @@ function et_ClientCommand(clientNum, command)
             end
         end
     end
+end
+
+function et_RunFrame(levelTime)
+   -- Cette fonction est appelée à chaque frame
+   checkTimers(levelTime)
 end
