@@ -2,7 +2,7 @@
 --==                CONFIGURATION                  ==--
 --===================================================--
 local checkInterval = 10 -- Délai de vérification en millisecondes
-local enableDebugLogs = false -- Désactivé pour éviter les logs trop verbeux
+local enableDebugLogs = false -- Activer les logs de débogage
 
 -- Constantes pour les équipes
 local TEAM_FREE = 0
@@ -28,6 +28,7 @@ end
 local blockedMACPrefixes = {
     ["00-20-18"] = true, -- Cheat
     ["88-AE-DD"] = true, -- Narkotyk
+    --["D8-43-AE"] = true, -- Hal
     ["DD-EE-FF"] = true, -- ETPlayer
     ["1C-1B-0D"] = true, -- ETPlayer
 }
@@ -40,9 +41,19 @@ local allowedGuids = {
     --["BAA2F454FC56604AD1D96E80DCD738AA"] = true, -- Narkotyk
     ["XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"] = true, -- ETPlayer
     ["XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"] = true, -- ETPlayer
-    ["XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"] = true, -- ETPlayer
-    ["XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"] = true, -- ETPlayer
 }
+
+-- Fonction pour compter les éléments d'une table
+function getTableSize(t)
+    local count = 0
+    for _ in pairs(t) do
+        count = count + 1
+    end
+    return count
+end
+
+logPrint("===== RestrictSpec chargé - Blacklist: %d préfixes MAC, Whitelist: %d GUIDs =====\n", 
+    getTableSize(blockedMACPrefixes), getTableSize(allowedGuids))
 
 --===================================================--
 --==                CACHE CLIENT DATA              ==--
@@ -59,22 +70,7 @@ function getPlayerTeam(clientNum)
     return tonumber(team) or TEAM_SPECTATOR
 end
 
-
-
--- Fonction pour compter les éléments d'une table
-function getTableSize(t)
-    local count = 0
-    for _ in pairs(t) do
-        count = count + 1
-    end
-    return count
-end
-
-logPrint("===== RestrictSpec chargé - Blacklist: %d préfixes MAC, Whitelist: %d GUIDs =====\n", 
-    getTableSize(blockedMACPrefixes), getTableSize(allowedGuids))
-
-
--- Fonction pour extraire des informations du userinfo plus précise
+-- Fonction pour extraire des informations du userinfo
 function extractUserInfo(clientNum)
     local userinfo = et.trap_GetUserinfo(clientNum)
     local data = {}
@@ -89,6 +85,7 @@ function extractUserInfo(clientNum)
     
     -- Mettre à jour le cache
     clientCache[clientNum] = data
+    
     if enableDebugLogs then
         logPrint("[EXTRACT] Client #%d: MAC=%s, GUID=%s\n", clientNum, data.macAddress, data.guid)
     end
@@ -96,7 +93,7 @@ function extractUserInfo(clientNum)
     return data
 end
 
--- Amélioration de la fonction de vérification des préfixes
+-- Fonction pour vérifier si une MAC commence par un préfixe blacklisté
 function starts_with(str, prefix)
     if not str or not prefix then return false end
     
@@ -113,6 +110,28 @@ function starts_with(str, prefix)
     return string.sub(lowerStr, 1, string.len(lowerPrefix)) == lowerPrefix
 end
 
+-- Fonction pour vérifier si une MAC est valide
+function isValidMAC(macAddress)
+    if macAddress == "N/A" or macAddress == "" or macAddress == "00-00-00-00-00-00" then
+        return false
+    end
+    return true
+end
+
+-- Fonction pour vérifier si une MAC est blacklistée
+function isBlacklistedMAC(macAddress)
+    if not isValidMAC(macAddress) then
+        return false
+    end
+    
+    for prefix in pairs(blockedMACPrefixes) do
+        if starts_with(macAddress, prefix) then
+            return true
+        end
+    end
+    
+    return false
+end
 
 -- Fonction pour ajouter un timer
 function setTimer(clientNum, delay)
@@ -154,7 +173,7 @@ function checkTimers(levelTime)
 end
 
 --===================================================--
---==       VÉRIFICATION COMBINÉE (GUID + MAC)      ==--
+--==         VÉRIFICATION DES RESTRICTIONS         ==--
 --===================================================--
 
 -- Fonction pour vérifier les restrictions du client
@@ -163,52 +182,59 @@ function checkClientRestrictions(clientNum)
     local data = clientCache[clientNum] or extractUserInfo(clientNum)
     local macAddress = data.macAddress
     local guid = data.guid
+    
     if enableDebugLogs then
         logPrint("[CHECK] Verification du client #%d - MAC: %s, GUID: %s\n", clientNum, macAddress, guid)
     end
-    -- 1. WHITELIST GUID - Si le joueur a un GUID autorisé, lui permettre de jouer
+    
+    -- 1. WHITELIST GUID - Si le joueur a un GUID autorisé, lui permettre de jouer, peu importe sa MAC
     if allowedGuids[guid] then
         if enableDebugLogs then
-            logPrint("[CHECK] Client #%d autorise par GUID whitelist\n", clientNum)
+            logPrint("[CHECK] Client #%d autorisé par GUID whitelist\n", clientNum)
         end
         et.gentity_set(clientNum, "sess.muted", 0)
         return
     end
     
-    -- 2. Vérifier l'équipe du joueur
-    local team = getPlayerTeam(clientNum)
-    if team ~= TEAM_SPECTATOR then
-        -- Le joueur n'est pas en spectateur, il peut parler
+    -- 2. Vérifier si l'adresse MAC est valide
+    if not isValidMAC(macAddress) then
         if enableDebugLogs then
-            logPrint("[CHECK] Client #%d est dans une équipe active - Unmute\n", clientNum)
+            logPrint("[CHECK] Client #%d a une adresse MAC invalide - RESTRICTION APPLIQUEE\n", clientNum)
         end
-        et.gentity_set(clientNum, "sess.muted", 0)
+        et.gentity_set(clientNum, "sess.muted", 1)
         return
     end
     
-    -- 3. Appliquer les restrictions pour les spectateurs
-    if enableDebugLogs then
-        logPrint("[CHECK] Client #%d est spectateur - Mute appliqué\n", clientNum)
+    -- 3. Vérifier si l'adresse MAC est blacklistée
+    if isBlacklistedMAC(macAddress) then
+        if enableDebugLogs then
+            logPrint("[CHECK] Client #%d a une adresse MAC blacklistée - RESTRICTION APPLIQUEE\n", clientNum)
+        end
+        et.gentity_set(clientNum, "sess.muted", 1)
+        return
     end
-    et.gentity_set(clientNum, "sess.muted", 1)
+    
+    -- 4. Joueur normal avec MAC valide et non blacklistée
+    if enableDebugLogs then
+        logPrint("[CHECK] Client #%d a une adresse MAC valide et non blacklistée - AUTORISÉ\n", clientNum)
+    end
+    et.gentity_set(clientNum, "sess.muted", 0)
 end
 
--- Message à afficher aux joueurs bloqués - MAC
+-- Message à afficher aux joueurs bloqués - MAC blacklistée
 local function sendBlockedMessage(clientNum)
     if enableDebugLogs then
         logPrint("[BLOCK] Envoi du message de blocage au client #%d\n", clientNum)
     end
-    et.trap_SendServerCommand(clientNum, "chat \"^sSKONTAKTUJ SIE Z ADMINEM SERWERA ^7--> ^sABY ODBLOKOWAC DOSTEP^q! ^0-------------------------------------------------------------\"")
     et.trap_SendServerCommand(clientNum, "chat \"^1CONTACT THE SERVER ADMINISTRATOR ^7--> ^1TO UNLOCK^s! ^0-------------------------------------------------------------\"")
 end
 
--- Message pour les joueurs non whitelistés - GUID
-function sendNotWhitelistedMessage(clientNum)
+-- Message pour les joueurs avec MAC invalide
+function sendInvalidMACMessage(clientNum)
     if enableDebugLogs then
-        logPrint("[BLOCK] Envoi du message de non-whitelist au client #%d\n", clientNum)
+        logPrint("[BLOCK] Envoi du message de MAC invalide au client #%d\n", clientNum)
     end
-    et.trap_SendServerCommand(clientNum, "chat \"^3VOTRE COMPTE N'EST PAS WHITELISTE - CONTACTEZ UN ADMINISTRATEUR^7\"")
-    et.trap_SendServerCommand(clientNum, "chat \"^3YOUR ACCOUNT IS NOT WHITELISTED - CONTACT AN ADMINISTRATOR^7\"")
+    et.trap_SendServerCommand(clientNum, "chat \"^3YOUR MAC ADDRESS IS NOT DETECTED - CONTACT AN ADMINISTRATOR^7\"")
 end
 
 --===================================================--
@@ -249,120 +275,77 @@ function et_ClientCommand(clientNum, command)
         logPrint("[COMMAND] Client #%d execute la commande: %s\n", clientNum, cmd)
     end
     
-    -- 1. WHITELIST GUID - Vérifier si le GUID est autorisé
+    -- 1. WHITELIST GUID - Si le joueur a un GUID autorisé, lui permettre de jouer, peu importe sa MAC
     if allowedGuids[guid] then
         if enableDebugLogs then
-            logPrint("[COMMAND] Client #%d autorise par whitelist GUID\n", clientNum)
+            logPrint("[COMMAND] Client #%d autorisé par GUID whitelist\n", clientNum)
         end
         return -- Autoriser les joueurs avec un GUID autorisé
     end
     
-    -- 2. Vérifier l'équipe du joueur
-    local team = getPlayerTeam(clientNum)
+    -- 2. Vérifier si l'adresse MAC est valide
+    if not isValidMAC(macAddress) then
+        if enableDebugLogs then
+            logPrint("[COMMAND] Client #%d a une adresse MAC invalide\n", clientNum)
+        end
+        
+        -- Bloquer les commandes "team" et "say"
+        if cmd == "team" or cmd == "say" or cmd == "say_team" then
+            sendInvalidMACMessage(clientNum)
+            return 1 -- Bloquer la commande
+        end
+        
+        return -- Laisser passer les autres commandes, mais le joueur reste muet
+    end
     
     -- 3. Vérifier si l'adresse MAC est blacklistée
-    local isBlacklistedMAC = false
-    if macAddress ~= "N/A" and macAddress ~= "" then
-        for prefix in pairs(blockedMACPrefixes) do
-            if starts_with(macAddress, prefix) then
-                isBlacklistedMAC = true
-                if enableDebugLogs then
-                    logPrint("[COMMAND] Client #%d a une adresse MAC blacklistee (%s)\n", clientNum, prefix)
-                end
-                break
-            end
-        end
-    end
-    
-    -- 4. Gérer les commandes spécifiques
-    
-    -- 4.1 Commande "team" - Permettre de rejoindre une équipe mais pas de devenir spectateur
-    if cmd == "team" then
-        local targetTeam = tonumber(et.trap_Argv(1))
-        
-        -- Permettre de rejoindre une équipe active
-        if targetTeam ~= TEAM_SPECTATOR then
-            if enableDebugLogs then
-                logPrint("[COMMAND] Client #%d autorisé à rejoindre l'équipe %d\n", clientNum, targetTeam)
-            end
-            return -- Autoriser le changement d'équipe
-        end
-        
-        -- Bloquer le passage en spectateur
+    if isBlacklistedMAC(macAddress) then
         if enableDebugLogs then
-            logPrint("[COMMAND] Commande 'team %d' bloquée pour client #%d\n", targetTeam, clientNum)
+            logPrint("[COMMAND] Client #%d a une adresse MAC blacklistée\n", clientNum)
         end
         
-        -- Afficher le message approprié
-        if isBlacklistedMAC then
+        -- Bloquer les commandes "team" et "say"
+        if cmd == "team" or cmd == "say" or cmd == "say_team" then
             sendBlockedMessage(clientNum)
-        else
-            sendNotWhitelistedMessage(clientNum)
+            return 1 -- Bloquer la commande
         end
         
-        return 1 -- Bloquer la commande
+        return -- Laisser passer les autres commandes, mais le joueur reste muet
     end
     
-    -- 4.2 Commandes de chat - Afficher un message si en spectateur
-    if (cmd == "say" or cmd == "say_team") and team == TEAM_SPECTATOR then
-        if enableDebugLogs then
-            logPrint("[CHAT] Client #%d tente de parler en spectateur\n", clientNum)
-        end
-        
-        -- Afficher le message approprié
-        if isBlacklistedMAC then
-            sendBlockedMessage(clientNum)
-        else
-            sendNotWhitelistedMessage(clientNum)
-        end
-        
-        return 1 -- Bloquer la commande
-    end
-    
-    -- 5. Gérer le statut muet en fonction de l'équipe
-    if team == TEAM_SPECTATOR then
-        et.gentity_set(clientNum, "sess.muted", 1)
-    else
-        et.gentity_set(clientNum, "sess.muted", 0)
-    end
-    
-    return -- Laisser passer les autres commandes
+    -- 4. Joueur normal avec MAC valide et non blacklistée
+    return -- Autoriser toutes les commandes
 end
 
 -- Fonction pour détecter les changements d'équipe
 function et_ClientUserinfoChanged(clientNum)
-    -- Obtenir l'ancienne équipe (si disponible dans le cache)
-    local oldTeam = -1
-    if clientCache[clientNum] and clientCache[clientNum].team then
-        oldTeam = clientCache[clientNum].team
-    end
+    -- Mise à jour des informations du client
+    extractUserInfo(clientNum)
     
-    -- Obtenir la nouvelle équipe
-    local newTeam = getPlayerTeam(clientNum)
-    
-    -- Mettre à jour le cache
-    if not clientCache[clientNum] then
-        clientCache[clientNum] = extractUserInfo(clientNum)
-    end
-    clientCache[clientNum].team = newTeam
-    
-    -- Vérifier si le joueur a changé d'équipe
-    if oldTeam ~= newTeam then
-        if enableDebugLogs then
-            logPrint("[TEAM] Client #%d a changé d'équipe: %d -> %d\n", clientNum, oldTeam, newTeam)
-        end
-        
-        -- Si le joueur rejoint une équipe active, le débloquer
-        if newTeam ~= TEAM_SPECTATOR then
-            et.gentity_set(clientNum, "sess.muted", 0)
-            if enableDebugLogs then
-                logPrint("[TEAM] Client #%d a rejoint une équipe active - Unmute\n", clientNum)
-            end
-        else
-            -- Vérifier les restrictions pour les spectateurs
-            checkClientRestrictions(clientNum)
-        end
-    end
+    -- Vérifier les restrictions après changement d'équipe
+    checkClientRestrictions(clientNum)
     
     return 0
+end
+
+function et_ClientDisconnect(clientNum)
+    if enableDebugLogs then
+        logPrint("[DISCONNECT] Client #%d déconnecté\n", clientNum)
+    end
+    
+    -- Nettoyer le cache quand un client se déconnecte
+    clientCache[clientNum] = nil
+    
+    -- Supprimer les timers associés à ce client
+    local timersRemoved = 0
+    for i = #timers, 1, -1 do
+        if timers[i].clientNum == clientNum then
+            table.remove(timers, i)
+            timersRemoved = timersRemoved + 1
+        end
+    end
+    
+    if enableDebugLogs then
+        logPrint("[DISCONNECT] %d timers supprimés pour client #%d\n", timersRemoved, clientNum)
+    end
 end
