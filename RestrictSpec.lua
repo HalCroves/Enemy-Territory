@@ -30,8 +30,12 @@ local allowGuids = {
 
 -- Fonction pour extraire l'adresse MAC du userinfo
 function extractMacAddress(userinfo)
-   local _, _, macAddress = string.find(userinfo, "\\x\\([%w%-]+)\\")
-   return macAddress or "N/A"
+    local _, _, macAddress = string.find(userinfo, "\\x\\([%w%-]+)\\")
+    if macAddress then
+        -- Log pour vérifier l'adresse MAC extraite
+        et.G_Printf("MAC extraite avant normalisation : %s\n", macAddress)
+    end
+    return macAddress or "N/A"
 end
 
 -- Fonction pour ajouter un timer
@@ -85,18 +89,28 @@ end
 function checkMacAddress(clientNum)
     local userinfo = et.trap_GetUserinfo(clientNum)
     local macAddress = extractMacAddress(userinfo)
+    et.G_Printf("Adresse MAC extraite : %s\n", macAddress)
     
     if macAddress == "N/A" or macAddress == "" then
+        et.G_Printf("Adresse MAC invalide pour le client %d\n", clientNum)
         et.gentity_set(clientNum, "sess.muted", 1)
-    else
-        for _, allowedMAC in ipairs(macAddressesToCheck) do
-            if starts_with(macAddress, allowedMAC) then
-                et.gentity_set(clientNum, "sess.muted", 1)
-                return
-            end
-        end
-        et.gentity_set(clientNum, "sess.muted", 0)
+        return
     end
+    
+    -- Vérifier si l'adresse MAC commence par un préfixe blacklisté
+    for _, blockedMACPrefix in ipairs(macAddressesToCheck) do
+        if starts_with(macAddress, blockedMACPrefix) then
+            et.G_Printf("Adresse MAC blacklistée : %s\n", macAddress)
+            et.gentity_set(clientNum, "sess.muted", 1)
+            return
+        else
+            et.G_Printf("Adresse MAC non correspondante : %s (Comparée à %s)\n", macAddress, blockedMACPrefix)
+        end
+    end
+    
+    -- Si aucune correspondance trouvée, ne pas mute
+    et.G_Printf("Adresse MAC autorisée : %s\n", macAddress)
+    et.gentity_set(clientNum, "sess.muted", 0)
 end
 
 -- Fonction permettant de déclencher le timer à la connextion
