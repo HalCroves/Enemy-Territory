@@ -57,18 +57,18 @@
 
 ## testrictSpec.lua
 > [!NOTE]
-> Gestion des équipes :
->+ Les joueurs ne sont muets que lorsqu'ils sont spectateurs
->+ Une fois dans une équipe active, ils peuvent parler normalement
+> Priority Whitelist GUID:
+>+ Players whose GUID is in allowedGuids can always speak and join a team.
+>+ This applies even if they don't have a MAC address (Linux players).
 
-> Commande "team" :
->+ Les joueurs peuvent rejoindre une équipe active via la commande "team"
->+ Ils ne peuvent pas retourner en spectateur via cette commande
+> Invalid MAC = restriction:
+>+ Players without a MAC address (N/A, empty, or 00-00-00-00-00-00) cannot speak or join a team.
+>+ They receive a specific message explaining that no MAC address is detected.
 
-> Tentatives de chat :
->+ Si un joueur spectateur tente de parler, il reçoit le message approprié selon son statut (MAC blacklistée ou GUID non whitelisté)
->+ Les joueurs dans une équipe active peuvent parler librement
+> Blacklisted MAC = restriction:
+>+ Players whose MAC address is in blockedMACPrefixes cannot speak or join a team.
+>+ They receive a specific message indicating they need to contact an administrator.
 
-> Changements d'équipe :
->+ Le script détecte automatiquement les changements d'équipe
->+ Il met à jour le statut muet/non-muet en conséquence
+> Valid and non-blacklisted MAC = allowed:
+>+ Players with a valid MAC address that is not in the blacklist can speak and join a team.
+>+ They receive no message and play normally.
