@@ -29,9 +29,10 @@ local allowGuids = {
 
 -- Fonction pour extraire l'adresse MAC du userinfo
 function extractMacAddress(userinfo)
-    -- Récupérer l'adresse MAC depuis le userinfo
-    local mac = et.Info_ValueForKey(userinfo, "mac") or "N/A"
-    return mac
+   -- Extraire l'adresse MAC du userinfo.
+   local _, _, macAddress = string.find(userinfo, "\\x\\([%w%-]+)\\")
+   
+   return macAddress or "N/A"
 end
 
 -- Fonction pour vérifier si une chaîne commence par un préfixe donné
@@ -41,12 +42,17 @@ end
 
 -- Fonction pour vérifier si le GUID du joueur est dans la liste des autorisés
 function isGuidAllowed(clientNum)
-    local guid = et.Info_ValueForKey(et.trap_GetUserinfo(clientNum), "cl_guid")
-    for _, allowedGuid in ipairs(allowGuids) do
-        if guid == allowedGuid then
-            return true
+    local userinfo = et.trap_GetUserinfo(clientNum)
+    local _, _, guid = string.find(userinfo, "cl_guid\\([^\\]+)\\")
+    
+    if guid then
+        for _, allowedGuid in ipairs(allowGuids) do
+            if guid == allowedGuid then
+                return true
+            end
         end
     end
+    
     return false
 end
 
@@ -74,8 +80,9 @@ function et_ClientCommand(clientNum, command)
         return
     end
               
-    -- Guid whitelist
+    -- Vérifier si le GUID est autorisé
     if isGuidAllowed(clientNum) then
+        -- Ignorer les joueurs ayant un GUID autorisé
         return
     end
 
