@@ -28,7 +28,7 @@ end
 local blockedMACPrefixes = {
     ["00-20-18"] = true, -- Cheat
     ["88-AE-DD"] = true, -- Narkotyk
-    --["D8-43-AE"] = true, -- Hal
+    ["D8-43-AE"] = true, -- Hal
     ["DD-EE-FF"] = true, -- ETPlayer
     ["1C-1B-0D"] = true, -- ETPlayer
 }
@@ -64,6 +64,23 @@ local timers = {}
 --===================================================--
 --==                HELPER FUNCTIONS               ==--
 --===================================================--
+-- Fonction pour vérifier si un client est un bot
+function isBot(clientNum)
+    -- Vérifier le userinfo pour détecter les bots
+    local userinfo = et.trap_GetUserinfo(clientNum)
+    local name = et.Info_ValueForKey(userinfo, "name")
+    local guid = et.Info_ValueForKey(userinfo, "cl_guid")
+    
+    -- Les bots ont typiquement des noms contenant "bot" et/ou des GUIDs spécifiques
+    if string.find(string.lower(name), "bot") or 
+       string.find(string.lower(guid), "bot") or
+       guid == "0" then
+        return true
+    end
+    
+    return false
+end
+
 -- Fonction pour obtenir l'équipe du joueur
 function getPlayerTeam(clientNum)
     local team = et.gentity_get(clientNum, "sess.sessionTeam")
@@ -178,6 +195,15 @@ end
 
 -- Fonction pour vérifier les restrictions du client
 function checkClientRestrictions(clientNum)
+    -- Vérifier d'abord si c'est un bot
+    if isBot(clientNum) then
+        if enableDebugLogs then
+            logPrint("[CHECK] Client #%d est un bot - IGNORÉ\n", clientNum)
+        end
+        et.gentity_set(clientNum, "sess.muted", 0) -- S'assurer que les bots ne sont jamais mutés
+        return
+    end
+    
     -- Extraire ou obtenir les données du client depuis le cache
     local data = clientCache[clientNum] or extractUserInfo(clientNum)
     local macAddress = data.macAddress
@@ -265,6 +291,14 @@ function et_RunFrame(levelTime)
 end
 
 function et_ClientCommand(clientNum, command)
+    -- Vérifier d'abord si c'est un bot
+    if isBot(clientNum) then
+        if enableDebugLogs then
+            logPrint("[COMMAND] Client #%d est un bot - Commande autorisée\n", clientNum)
+        end
+        return -- Autoriser toutes les commandes pour les bots
+    end
+    
     -- Obtenir les informations du client
     local data = clientCache[clientNum] or extractUserInfo(clientNum)
     local macAddress = data.macAddress
@@ -319,6 +353,14 @@ end
 
 -- Fonction pour détecter les changements d'équipe
 function et_ClientUserinfoChanged(clientNum)
+    -- Vérifier d'abord si c'est un bot
+    if isBot(clientNum) then
+        if enableDebugLogs then
+            logPrint("[USERINFO] Client #%d est un bot - IGNORÉ\n", clientNum)
+        end
+        return 0
+    end
+
     -- Mise à jour des informations du client
     extractUserInfo(clientNum)
     
