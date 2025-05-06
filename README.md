@@ -15,6 +15,7 @@
 + radar.lua: Disables fog and grass.
 + stats.lua: Tracks headshot stats and best shooter by weapon.
 + resetxpbot_nitmod.lua: Resets bot XP at the beginning of each map.
++ restrictSpec.lua : add restriction for players in spectator.
 
 ## balance.lua
 > [!NOTE]
@@ -53,3 +54,21 @@
 > There are one variable that can be modified:
 >+ Enable/disable the resetxpbot : true/false
 >```local resetXPBot = true```
+
+## testrictSpec.lua
+> [!NOTE]
+> Gestion des équipes :
+>+ Les joueurs ne sont muets que lorsqu'ils sont spectateurs
+>+ Une fois dans une équipe active, ils peuvent parler normalement
+
+> Commande "team" :
+>+ Les joueurs peuvent rejoindre une équipe active via la commande "team"
+>+ Ils ne peuvent pas retourner en spectateur via cette commande
+
+> Tentatives de chat :
+>+ Si un joueur spectateur tente de parler, il reçoit le message approprié selon son statut (MAC blacklistée ou GUID non whitelisté)
+>+ Les joueurs dans une équipe active peuvent parler librement
+
+> Changements d'équipe :
+>+ Le script détecte automatiquement les changements d'équipe
+>+ Il met à jour le statut muet/non-muet en conséquence
