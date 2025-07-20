@@ -55,7 +55,7 @@
 >+ Enable/disable the resetxpbot : true/false
 >```local resetXPBot = true```
 
-## testrictSpec.lua
+## RestrictSpec.lua
 > [!NOTE]
 > Priority Whitelist GUID:
 >+ Players whose GUID is in allowedGuids can always speak and join a team.
